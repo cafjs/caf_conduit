@@ -21,10 +21,10 @@ If any of the tasks returns a callback error task graph execution stops after pr
 To create a new conduit:
 
     var conduit = require('caf_conduit')
-    // user method names that implement tasks
-    var cnd = conduit.newConduit(['foo','bar']);
-    // or from  a serialized string 
-    var cnd2 = conduit.parseConduit(strCnd);
+    // declare method names that implement tasks
+    var cnd = conduit.newInstance(['foo','bar']);
+    // or start with a serialized conduit 
+    var cnd2 = conduit.parse(strCnd);
     
 Adding new tasks:
 
@@ -47,14 +47,14 @@ Serializing a conduit :
 Adding methods to implement tasks: 
 
     var actions = {
-                    'foo' : function(ctx, cb) {
+                    'foo' : function(ctx, args, cb) {
                       var whatever = (ctx.parent && ctx.parent.whatever) || 0;
                       var data = whatever + 1
                       // always use the callback to return data 
                       //  and the library adds the binding to ctx with err/data
                       cb(null, {'data': data})
                      },
-                     'bar' : function(ctx, cb) {
+                     'bar' : function(ctx, args, cb) {
                       ...
                      }
                    }
