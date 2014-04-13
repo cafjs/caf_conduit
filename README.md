@@ -8,62 +8,87 @@ See http://www.cafjs.com
 
 **UNDER CONSTRUCTION**
 
-This repository contains a CAF lib to simplify the orchestration of asynchronous tasks that use standard node.js callback convention. Implements a fork/join functional paradigm using the `async` package. Uses a map to propagate results through the graph using a fold operation in depth-first reverse postordering, i.e., topological sort. Tasks can chose a unique label for its results and use the results of other tasks that happened-before. The parent task results are always available with label `parent`.
+  Conduits are functional processing pipelines assembled in a series-parallel
+ task graph. Each task implements an asynchronous action that uses standard
+ node.js callback conventions, and data flows through pipelines by folding
+ a map in a graph traversal that respects task dependencies.
+ Map entries are labelled with the originating task, enabling communication
+ between tasks. Unique labels can be chosen by the application or
+ assigned by the library.  
 
-The structure and configuration of the fork-join task graph is serializable and can be late bound to a different method that implements the task. This is useful when, for example, we create a task graph in the browser that can be uploaded for execution by a CA, but could also be directly executed in the browser with a different implementation, e.g., using jQuery Ajax calls.
+  An error in any of the tasks aborts the traversal, returning in a callback
+ this error and previous results already in the map.
 
-If any of the tasks returns a callback error task graph execution stops after propagating the callback error.
-
-
+  The structure and configuration of conduits can be serialized, and later
+ on, after parsing, can be bound  to a different set of implementation
+ methods. This simplifies uploading conduits (from the browser to a CA) in a
+ secure manner, and modify their behavior based on the execution context.
 
 ## API
 
-To create a new conduit:
-
+ Conduits are immutable data structures and reusing pipeline elements
+ never creates side-effects. Task graphs are built using a stack,
+ similar to an HP calculator with reverse polish notation (RPN), but only
+ two operators `__seq__(n)` and `__par__(n)`. For example:
+ 
     var conduit = require('caf_conduit')
-    // declare method names that implement tasks
-    var cnd = conduit.newInstance(['foo','bar']);
-    // or start with a serialized conduit 
-    var cnd2 = conduit.parse(strCnd);
     
-Adding new tasks:
-
-    // first argument provide arguments for the invoked task
-    // second argument, optional label for the results
+    // declare method names that implement tasks
+    c = conduit.newInstance(['foo','bar'])
+    
+    // first argument provides arguments for the invoked task
+    // second argument, an optional label for the results
     // returns a new conduit (a conduit object is immutable) 
-    cnd = cnd.foo({arg1: 'whatever'}, 'foo1')
-             .bar({otherArg: 'ddfd'}, 'myBar')
-             .foo({arg1: 'other whatever'}, 'foo2')
+    c = c.foo({'arg':1}, 'fx0')
+         .foo({'arg':2, 'prev': 'fx0'}, 'fx1')
+         .foo({'arg':4, 'prev': 'fx1'}, 'fx2')
+         .__seq__(3)
+         .bar({'arg':2}, 'bx')
+         .bar({'arg':4}, 'b1x')
+         .__seq__()
+         .__par__()
+               
+ will execute in parallel to sequences of 3 foos and 2 bars.
+ 
+And this can be composed with another conduit as follows:
+ 
+    b = conduit.newInstance(['foo','bar'])
+    b = b.foo({'arg':1}, 'ffx')
+         .__push__(c)
+         .__seq__()  
 
-Joining multiple conduits:
-
-    // array of conduits
-    var newCnd = cnd.__join__([cnd2])
 
 Serializing a conduit :
 
-    var newCndStr = newCnd.__stringify__()
-    
+    var st = b.__stringify__()
+    var c = conduit.parse(st);
+     
 Adding methods to implement tasks: 
 
     var actions = {
-                    'foo' : function(ctx, args, cb) {
-                      var whatever = (ctx.parent && ctx.parent.whatever) || 0;
-                      var data = whatever + 1
-                      // always use the callback to return data 
-                      //  and the library adds the binding to ctx with err/data
-                      cb(null, {'data': data})
+                    'foo' : function(acc, args, cb) {
+                      // acc should be treated as read-only
+                      //
+                      // Note that args.prev should `happened-before` this task
+                      var whatever = (args.prev && acc[args.prev] && 
+                                      acc[args.prev].data &&
+                                      acc[args.prev].data.whatever) || 0;
+                      // Never use `return xx`, use the callback to return.
+                      // New `whatever` will be added to acc by this library.
+                      cb(null, {'whatever': whatever + 1})
                      },
                      'bar' : function(ctx, args, cb) {
                       ...
                      }
                    }
-    newCnd = newCnd.__behavior__(actions)
+    b = b.__behavior__(actions)
 
 Executing the task graph:
 
-    newCnd.__fold__({}, function(err, data) {
-                           // data 
+    var acc = {}
+    newCnd.__fold__(acc, function(err, data) {
+                           // data  contains `acc` with keys using 
+                           // the given labels or, if missing,  unique strings.
     });
  
 ## Configuration Example
