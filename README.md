@@ -58,7 +58,7 @@ And this can be composed with another conduit as follows:
          .__seq__()  
 
 
-Serializing a conduit :
+Serializing a conduit:
 
     var st = b.__stringify__()
     var c = conduit.parse(st);
@@ -86,9 +86,10 @@ Adding methods to implement tasks:
 Executing the task graph:
 
     var acc = {}
-    newCnd.__fold__(acc, function(err, data) {
-                           // data  contains `acc` with keys using 
-                           // the given labels or, if missing,  unique strings.
+    b.__fold__(acc, function(err, data) {
+                        // data refers to `acc` with a new entry for each
+                        //  task (key is the given label or a unique string,
+                        //        value is {err: <err>, data: <whatever>})
     });
  
 ## Configuration Example
