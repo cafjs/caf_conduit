@@ -6,7 +6,6 @@ See http://www.cafjs.com
 
 ## CAF Lib Conduit
 
-**UNDER CONSTRUCTION**
 
   Conduits are functional processing pipelines assembled in a series-parallel
  task graph. Each task implements an asynchronous action that uses standard
@@ -14,10 +13,13 @@ See http://www.cafjs.com
  a map in a graph traversal that respects task dependencies.
  Map entries are labelled with the originating task, enabling communication
  between tasks. Unique labels can be chosen by the application or
- assigned by the library.  
-
+ assigned by the library. Tasks can explicitly declare these dependencies and
+ 'conduit' will check for data races or dangling references at build time. 
+ Labels can be made unique by scoping with a prefix, and 'conduit' will
+ rewrite the dependencies for you. 
+ 
   An error in any of the tasks aborts the traversal, returning in a callback
- this error and previous results already in the map.
+ this error and previous (or parallel)  results already in the map.
 
   The structure and configuration of conduits can be serialized, and later
  on, after parsing, can be bound  to a different set of implementation
@@ -37,25 +39,31 @@ See http://www.cafjs.com
     c = conduit.newInstance(['foo','bar'])
     
     // first argument provides arguments for the invoked task
-    // second argument, an optional label for the results
+    // second argument, an optional object with read dependencies
+    // third argument, an optional label for the results
     // returns a new conduit (a conduit object is immutable) 
-    c = c.foo({'arg':1}, 'fx0')
-         .foo({'arg':2, 'prev': 'fx0'}, 'fx1')
-         .foo({'arg':4, 'prev': 'fx1'}, 'fx2')
+    c = c.foo({'arg':1}, null, 'fx0')
+         .foo({'arg':2}, {'prev': 'fx0'}, 'fx1')
+         .foo({'arg':4}, {'prev': 'fx1'}, 'fx2')
          .__seq__(3)
-         .bar({'arg':2}, 'bx')
-         .bar({'arg':4}, 'b1x')
+         .bar({'arg':2}, null,  'bx')
+         .bar({'arg':4}, null, 'b1x')
          .__seq__()
          .__par__()
                
- will execute in parallel to sequences of 3 foos and 2 bars.
+ will execute in parallel two sequences of 3 foos and 2 bars.
  
 And this can be composed with another conduit as follows:
  
     b = conduit.newInstance(['foo','bar'])
-    b = b.foo({'arg':1}, 'ffx')
+    b = b.foo({'arg':1}, null, 'ffx')
          .__push__(c)
-         .__seq__()  
+         .__seq__()
+         
+Or we can use it as a template, and prefix labels to avoid collisions:
+
+    cClone = c.__scope__('myspace/')
+    // and now labels are of the form 'myspace/fx0', 'myspace/fx1'...
 
 
 Serializing a conduit:
@@ -66,18 +74,19 @@ Serializing a conduit:
 Adding methods to implement tasks: 
 
     var actions = {
-                    'foo' : function(acc, args, cb) {
+                    'foo' : function(acc, args, deps, label, cb) {
                       // acc should be treated as read-only
                       //
-                      // Note that args.prev should `happened-before` this task
-                      var whatever = (args.prev && acc[args.prev] && 
-                                      acc[args.prev].data &&
-                                      acc[args.prev].data.whatever) || 0;
+                      // Note that deps.prev `happened-before` this task
+                      //   because conduit checks for races.
+                      var whatever = (deps && deps.prev && acc[deps.prev] && 
+                                      acc[deps.prev].data &&
+                                      acc[deps.prev].data.whatever) || 0;
                       // Never use `return xx`, use the callback to return.
                       // New `whatever` will be added to acc by this library.
                       cb(null, {'whatever': whatever + 1})
                      },
-                     'bar' : function(ctx, args, cb) {
+                     'bar' : function(acc, args, deps, label, cb) {
                       ...
                      }
                    }
@@ -87,7 +96,7 @@ Executing the task graph:
 
     var acc = {}
     b.__fold__(acc, function(err, data) {
-                        // data refers to `acc` with a new entry for each
+                        // data refers to `acc` with an entry for each
                         //  task (key is the given label or a unique string,
                         //        value is {err: <err>, data: <whatever>})
     });
