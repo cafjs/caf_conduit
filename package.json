@@ -1,7 +1,7 @@
 {
     "name": "caf_conduit",
     "description": "Cloud Assistants lib for orchestrating asynchronous tasks.",
-    "version": "0.0.7",
+    "version": "0.0.8",
     "author": "Antonio Lain <antlai@cafjs.com>",
     "dependencies": {
         "async" : ">=0.1.9"
