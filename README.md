@@ -98,7 +98,11 @@ Executing the task graph:
     b.__fold__(acc, function(err, data) {
                         // data refers to `acc` with an entry for each
                         //  task (key is the given label or a unique string,
-                        //        value is {err: <err>, data: <whatever>})
+                        //        value is {err: <err>, data: <whatever>,
+                        //                  meta: {name:string, args:[],
+                        //                         deps:[]}})
+                        // where meta just records call arguments
+                        ...
     });
  
 ## Configuration Example
