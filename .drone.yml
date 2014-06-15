@@ -2,3 +2,7 @@ image: bradrydzewski/node:0.8
 script:
   - npm install
   - npm test
+notify:
+  email:
+    recipients:
+      - ci.cafjs@gmail.com
