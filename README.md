@@ -65,7 +65,6 @@ Or we can use it as a template, and prefix labels to avoid collisions:
     cClone = c.__scope__('myspace/')
     // and now labels are of the form 'myspace/fx0', 'myspace/fx1'...
 
-
 Serializing a conduit:
 
     var st = b.__stringify__()
