@@ -6,6 +6,8 @@ See http://www.cafjs.com
 
 ## CAF Lib Conduit
 
+[![Build Status](http://ci.cafjs.com/github.com/cafjs/caf_conduit/status.svg?branch=master)](http://ci.cafjs.com/github.com/cafjs/caf_conduit)
+
 
   Conduits are functional processing pipelines assembled in a series-parallel
  task graph. Each task implements an asynchronous action that uses standard
